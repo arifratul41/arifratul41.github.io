@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useState, useEffect, useRef} from "react";
 
 const dateFormat = "DD-MM-YYYY";
 
@@ -63,6 +63,33 @@ export default function DatePickerNew() {
     </td>);
     const totalSlots = [...blanks, ...daysInMonthTdArray];
 
+    const ref = useRef();
+
+    useOnClickOutside(ref, () => setShowDatepicker(false));
+    function useOnClickOutside(ref, handler) {
+        useEffect(
+            () => {
+                const listener = (event) => {
+                    // Do nothing if clicking ref's element or descendent elements
+                    if (!ref.current || ref.current.contains(event.target)) {
+                        return;
+                    }
+
+                    handler(event);
+                };
+
+                document.addEventListener("mousedown", listener);
+                document.addEventListener("touchstart", listener);
+
+                return () => {
+                    document.removeEventListener("mousedown", listener);
+                    document.removeEventListener("touchstart", listener);
+                };
+            },
+            [ref, handler]
+        );
+    }
+
     const rows = [];
     let cells = [];
 
@@ -83,14 +110,13 @@ export default function DatePickerNew() {
     return <div className="h-screen w-screen flex-1 items-center justify-center bg-gray-200 w-96">
         <div>
             <div
-                className="container mx-auto">
+                className="container mx-auto" >
                 <div className="mb-5">
                     <div className="relative">
                         <input
                             type="text"
                             onClick={_ => setShowDatepicker(!showDatepicker)}
                             value={datepickerValue}
-                            onChange={event => setDatepickerValue(event.target.value)}
                             onKeyDown={({key}) => setShowDatepicker(key !== 'Escape')}
                             className="w-full pl-4 pr-10 py-3 leading-none rounded-lg shadow-sm focus:outline-none focus:shadow-outline text-gray-600 font-medium"
                             placeholder="Select date"/>
@@ -103,7 +129,7 @@ export default function DatePickerNew() {
                         </div>
 
                         {showDatepicker &&
-                        <div className="absolute top-0 left-0 p-4 mt-12 bg-white rounded-lg shadow">
+                        <div className="absolute top-0 left-0 p-4 mt-12 bg-white rounded-lg shadow" ref={ref}>
                             <div className="flex items-center justify-between mb-2">
                                 <div>
                                     <span className="text-lg font-bold text-gray-800">{MONTH_NAMES[month]}</span>
