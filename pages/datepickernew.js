@@ -29,12 +29,19 @@ const formatDateForDisplay = date => {
     return `${formattedDay} ${formattedDate} ${formattedMonth} ${formattedYear}`;
 };
 
+const getDateFromDatepickerString = dateString => {
+
+    if(dateFormat === "DD-MM-YYYY"){
+        return new Date(dateString.substring(6,10), parseInt(dateString.substring(3,5)) - 1, dateString.substring(0,2));
+    }
+    return false;
+};
 
 export default function DatePickerNew() {
     const currentDate = new Date();
 
     const [datepickerValue, setDatepickerValue] = useState(formatDateForDisplay(currentDate));
-    const [showDatepicker, setShowDatepicker] = useState(true);
+    const [showDatepicker, setShowDatepicker] = useState(false);
     const [month, setMonth] = useState(currentDate.getMonth());
     const [year, setYear] = useState(currentDate.getFullYear());
     const [totalDayInTheMonth, setTotalDayInTheMonth] = useState(new Date(year, month, 0).getDate());
@@ -47,7 +54,6 @@ export default function DatePickerNew() {
     const setMonthlyData = (y, m) => {
         setTotalDayInTheMonth(new Date(y, m + 1, 0).getDate());
         setFirstDayOfMonth(new Date(y, m, 1).getDay());
-        console.log(totalDayInTheMonth, firstDayOfMonth, y, m);
     };
     const getColor = date => {
         if (isToday(date)) return 'bg-indigo-200';
@@ -70,7 +76,6 @@ export default function DatePickerNew() {
         useEffect(
             () => {
                 const listener = (event) => {
-                    // Do nothing if clicking ref's element or descendent elements
                     if (!ref.current || ref.current.contains(event.target)) {
                         return;
                     }
@@ -106,7 +111,6 @@ export default function DatePickerNew() {
         }
     });
     const daysInMonths = rows.map((d, i) => <tr>{d}</tr>);
-
     return <div className="h-screen w-screen flex-1 items-center justify-center bg-gray-200 w-96">
         <div>
             <div
@@ -115,7 +119,10 @@ export default function DatePickerNew() {
                     <div className="relative">
                         <input
                             type="text"
-                            onClick={_ => setShowDatepicker(!showDatepicker)}
+                            onClick={_ => setShowDatepicker(!showDatepicker) ||
+                                setMonthlyData(getDateFromDatepickerString(datepickerValue).getFullYear(), getDateFromDatepickerString(datepickerValue).getMonth()) ||
+                                setYear(getDateFromDatepickerString(datepickerValue).getFullYear())|| setMonth(getDateFromDatepickerString(datepickerValue).getMonth())
+                            }
                             value={datepickerValue}
                             onKeyDown={({key}) => setShowDatepicker(key !== 'Escape')}
                             className="w-full pl-4 pr-10 py-3 leading-none rounded-lg shadow-sm focus:outline-none focus:shadow-outline text-gray-600 font-medium"
