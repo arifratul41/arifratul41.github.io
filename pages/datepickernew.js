@@ -127,19 +127,18 @@ export default function DatePickerNew() {
                             onKeyDown={({key}) => setShowDatepicker(key !== 'Escape')}
                             className="w-full pl-4 pr-10 py-3 leading-none rounded-lg shadow-sm focus:outline-none focus:shadow-outline text-gray-600 font-medium"
                             placeholder="Select date"/>
-                        <div className="absolute top-0 right-0 px-3 py-2 hover:border-indigo-200 border rounded-lg">
-                            <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24"
-                                 stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                            </svg>
-                        </div>
 
                         {showDatepicker &&
                         <div className="absolute top-0 left-0 p-4 mt-12 bg-white rounded-lg shadow" ref={ref}>
                             <div className="flex items-center justify-between mb-2">
                                 <div>
-                                    <span className="text-lg font-bold text-gray-800">{MONTH_NAMES[month]}</span>
+                                    <span className="text-lg font-bold text-gray-800">
+                                        <select onChange={event => setMonthlyData(year, event.target.value) || setMonth(event.target.value) || setYear(year)|| console.log(year, event.target.value)}>
+                                            {MONTH_NAMES.map((monthFullName, i) =>
+                                                (month === i ? <option value={i} selected>{monthFullName}</option> : <option value={i}>{monthFullName}</option>)
+                                            )}
+                                        </select>
+                                    </span>
                                     <span className="ml-1 text-lg font-normal text-gray-600">{year}</span>
                                 </div>
                                 <div>
