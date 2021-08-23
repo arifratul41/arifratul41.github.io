@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useState, useEffect, useRef} from "react";
 
 const dateFormat = "DD-MM-YYYY";
 
@@ -29,146 +29,184 @@ const formatDateForDisplay = date => {
     return `${formattedDay} ${formattedDate} ${formattedMonth} ${formattedYear}`;
 };
 
-export default function DatePicker() {
+const getDateFromDatepickerString = dateString => {
+    if (dateFormat === "DD-MM-YYYY") {
+        return new Date(dateString.substring(6, 10), parseInt(dateString.substring(3, 5)) - 1, dateString.substring(0, 2));
+    }
+    return new Date();
+};
 
+export default function DatePicker() {
     const currentDate = new Date();
 
     const [datepickerValue, setDatepickerValue] = useState(formatDateForDisplay(currentDate));
-    const [showDatepicker, setShowDatepicker] = useState(null);
-    const [selectedDate, setSelectedDate] = useState(null);
+    const [showDatepicker, setShowDatepicker] = useState(false);
     const [month, setMonth] = useState(currentDate.getMonth());
     const [year, setYear] = useState(currentDate.getFullYear());
-    const [blankdays, setBlankdays] = useState([...new Array(new Date(year, month + 1, 0).getDate()).keys()]);
-    const [noOfDays, setNoOfDays] = useState([...new Array(new Date(year, month).getDay()).keys()]);
+    const [totalDayInTheMonth, setTotalDayInTheMonth] = useState(new Date(year, month, 0).getDate());
+    const [firstDayOfMonth, setFirstDayOfMonth] = useState(new Date(year, month, 1).getDay());
+    const [startYear, setStartYear] = useState(1900);
+    const [endYear, setEndYear] = useState(2030);
 
     const isSelectedDate = date => datepickerValue === formatDateForDisplay(new Date(year, month, date));
 
     const isToday = date => new Date().toDateString() === new Date(year, month, date).toDateString();
 
-    const getDateValue = date => {
-        console.log(date);
-        setSelectedDate(new Date(year, month, date));
-        setDatepickerValue(formatDateForDisplay(selectedDate));
-        isSelectedDate(date);
-        setShowDatepicker(false);
+    const setMonthlyData = (y, m) => {
+        setTotalDayInTheMonth(new Date(y, m + 1, 0).getDate());
+        setFirstDayOfMonth(new Date(y, m, 1).getDay());
     };
-
-    const getNoOfDays = (month, year) => {
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        const dayOfWeek = new Date(year, month).getDay();
-        setBlankdays([...new Array(dayOfWeek).keys()]);
-        setNoOfDays([...new Array(daysInMonth).keys()]);
-    };
-
-    const initDate = newDate => {
-        newDate && setSelectedDate(newDate);
-        const today = newDate ? new Date(Date.parse(newDate)) : new Date();
-        setMonth(today.getMonth());
-        setYear(today.getFullYear());
-        setDatepickerValue(formatDateForDisplay(today));
-    };
-
     const getColor = date => {
         if (isToday(date)) return 'bg-indigo-200';
-        else if (isSelectedDate(date)) return 'text-gray-600 hover:bg-indigo-200';
-        else return 'bg-indigo-500 text-white hover:bg-opacity-75';
+        else if (isSelectedDate(date)) return 'text-gray-600 bg-indigo-100 hover:bg-indigo-200';
+        else return 'bg-white text-black hover:bg-gray-200';
+    };
+
+    function range(start, end) {
+        return Array(end - start + 1).fill().map((_, idx) => start + idx)
     }
 
-    return (
-        <div className="h-screen w-screen flex items-center justify-center bg-gray-200">
-            <div>
-                <div
-                    onClick={_ => initDate() || (setShowDatepicker(!showDatepicker))}
-                    onBlur={_ => setShowDatepicker(false)}
-                    className="container mx-auto">
-                    <div className="mb-5">
-                        <div className="relative">
-                            <input type="hidden" name="date" value={datepickerValue}/>
-                            <input
-                                type="text"
-                                value={datepickerValue}
+    const yearRange = range(startYear, endYear);
 
-                                onKeyDown={({key}) => setShowDatepicker(key !== 'Escape')}
-                                className="w-full pl-4 pr-10 py-3 leading-none rounded-lg shadow-sm focus:outline-none focus:shadow-outline text-gray-600 font-medium"
-                                placeholder="Select date"/>
-                            <div className="absolute top-0 right-0 px-3 py-2 hover:border-indigo-200 border rounded-lg">
-                                <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24"
-                                     stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                </svg>
+    const blanks = Array.from({length: firstDayOfMonth}, (_) => <td>{""}</td>);
+    const daysInMonth = Array.from({length: totalDayInTheMonth}, (_, i) => i + 1);
+    const daysInMonthTdArray = daysInMonth.map((d, i) => <td
+        onClick={_ => setDatepickerValue(formatDateForDisplay(new Date(year, month, d))) || setShowDatepicker(!showDatepicker)}>
+        <div className={"rounded-full w-8 h-8 flex flex-col justify-center items-center " + getColor(d)}>{d}</div>
+    </td>);
+    const totalSlots = [...blanks, ...daysInMonthTdArray];
+
+    const ref = useRef();
+
+    useOnClickOutside(ref, () => setShowDatepicker(false));
+
+    function useOnClickOutside(ref, handler) {
+        useEffect(
+            () => {
+                const listener = (event) => {
+                    if (!ref.current || ref.current.contains(event.target)) {
+                        return;
+                    }
+                    handler(event);
+                };
+
+                document.addEventListener("mousedown", listener);
+                document.addEventListener("touchstart", listener);
+
+                return () => {
+                    document.removeEventListener("mousedown", listener);
+                    document.removeEventListener("touchstart", listener);
+                };
+            },
+            [ref, handler]
+        );
+    }
+
+    const rows = [];
+    let cells = [];
+
+    totalSlots.forEach((row, i) => {
+        if (i % 7 !== 0) {
+            cells.push(row);
+        } else {
+            rows.push(cells);
+            cells = [];
+            cells.push(row);
+        }
+        if (i === totalSlots.length - 1) {
+            rows.push(cells);
+        }
+    });
+    const monthTableData = rows.map((d, i) => <tr>{d}</tr>);
+    return <div className="h-screen w-screen flex-1 items-center justify-center bg-gray-200 w-96">
+        <div
+            className="container mx-auto">
+            <div className="mb-5">
+                <div className="relative">
+                    <input
+                        type="text"
+                        onClick={_ => setShowDatepicker(!showDatepicker) ||
+                            setMonthlyData(getDateFromDatepickerString(datepickerValue).getFullYear(), getDateFromDatepickerString(datepickerValue).getMonth()) ||
+                            setYear(getDateFromDatepickerString(datepickerValue).getFullYear()) || setMonth(getDateFromDatepickerString(datepickerValue).getMonth())
+                        }
+                        value={datepickerValue}
+                        onKeyDown={({key}) => setShowDatepicker(key !== 'Escape')}
+                        className="w-full pl-4 pr-10 py-3 leading-none rounded-lg shadow-sm focus:outline-none focus:shadow-outline text-gray-600 font-medium"
+                        placeholder="Select date"/>
+
+                    {showDatepicker &&
+                    <div className="absolute top-0 left-0 p-4 mt-12 bg-white rounded-lg shadow" ref={ref}>
+                        <div className="flex items-center justify-between mb-2">
+                            <div>
+                                    <span className="text-lg font-bold text-gray-800">
+                                        <select
+                                            onChange={event => setMonthlyData(year, parseInt(event.target.value)) || setMonth(parseInt(event.target.value))}>
+                                            {MONTH_NAMES.map((monthFullName, i) =>
+                                                (month === i ?
+                                                    <option value={i} selected>{monthFullName}</option> :
+                                                    <option value={i}>{monthFullName}</option>)
+                                            )}
+                                        </select>
+                                    </span>
+                                <span className="ml-1 text-lg font-normal text-gray-600"><select
+                                    onChange={event => setMonthlyData(parseInt(event.target.value), month) || setYear(parseInt(event.target.value))}>
+                                            {yearRange.map((yearNumber, i) =>
+                                                (yearNumber === year ?
+                                                    <option value={yearNumber} selected>{yearNumber}</option> :
+                                                    <option value={yearNumber}>{yearNumber}</option>)
+                                            )}
+                                        </select></span>
                             </div>
-
-                            {showDatepicker &&
-                            <div className="absolute top-0 left-0 p-4 mt-12 bg-white rounded-lg shadow">
-                                <div className="flex items-center justify-between mb-2">
-                                    <div>
-                                        <span className="text-lg font-bold text-gray-800">{MONTH_NAMES[month]}</span>
-                                        <span className="ml-1 text-lg font-normal text-gray-600">{year}</span>
-                                    </div>
-                                    <div>
-                                        <button
-                                            type="button"
-                                            className="inline-flex p-1 transition duration-100 ease-in-out rounded-full cursor-pointer focus:outline-none focus:shadow-outline hover:bg-gray-100"
-                                            onClick={_ =>
-                                                (month === 0 ? (setYear(year - 1) || setMonth(12)) : setMonth(month - 1)) ||
-                                                getNoOfDays(month, year)}>
-                                            <svg className="inline-flex w-6 h-6 text-gray-400" fill="none"
-                                                 viewBox="0 0 24 24"
-                                                 stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                                      d="M15 19l-7-7 7-7"/>
-                                            </svg>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="inline-flex p-1 transition duration-100 ease-in-out rounded-full cursor-pointer focus:outline-none focus:shadow-outline hover:bg-gray-100"
-                                            onClick={_ =>
-                                                (month === 11 ? (setYear(year + 1) || setMonth(0)) : setMonth(month + 1)) ||
-                                                getNoOfDays(month, year)}>
-                                            <svg className="inline-flex w-6 h-6 text-gray-400" fill="none"
-                                                 viewBox="0 0 24 24"
-                                                 stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                                      d="M9 5l7 7-7 7"/>
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/*Days of a week*/}
-                                <div className="flex flex-wrap mb-3 -mx-1">
-                                    {DAYS.map((day, i) =>
-                                    <div className="px-0.5 mx-1" key={i}>
-                                        <div className="text-xs font-medium text-center text-gray-800">{day}</div>
-                                    </div>
-                                )}
-                                </div>
-
-                                <div className="flex flex-wrap mb-3 mx-1">
-                                    {blankdays.map((blankday, i) =>
-                                        <div className="px-1 mx-2" key={i} onClick={_ => setShowDatepicker(false)}>
-                                            <div className="p-1 text-sm text-center border border-transparent">{blankday}</div>
-                                        </div>
-                                    )}
-                                    {noOfDays.map((date, i) =>
-                                        <div className="px-0.5 w-1 mb-1" key={i}>
-                                            <div className="px-1 mb-1 w-2/12">
-                                                <div
-                                                    onClick={getDateValue(date)}
-                                                    className={"text-sm leading-none leading-loose text-center transition duration-100 ease-in-out rounded-full cursor-pointer " + getColor(date)}>
-                                                    {date}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
+                            <div>
+                                <button
+                                    type="button"
+                                    className="inline-flex p-1 transition duration-100 ease-in-out rounded-full cursor-pointer focus:outline-none focus:shadow-outline hover:bg-gray-100"
+                                    onClick={_ => {
+                                        (month === 0) ? setMonthlyData(year - 1, 11) || setYear(year - 1) || setMonth(11) :
+                                            setMonthlyData(year, month - 1) || setMonth(month - 1)
+                                    }
+                                    }>
+                                    <svg className="inline-flex w-6 h-6 text-gray-400" fill="none"
+                                         viewBox="0 0 24 24"
+                                         stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                              d="M15 19l-7-7 7-7"/>
+                                    </svg>
+                                </button>
+                                <button
+                                    type="button"
+                                    className="inline-flex p-1 transition duration-100 ease-in-out rounded-full cursor-pointer focus:outline-none focus:shadow-outline hover:bg-gray-100"
+                                    onClick={_ => {
+                                        (month === 1) ? setMonthlyData(year + 1, 0) || setYear(year + 1) || setMonth(0) :
+                                            setMonthlyData(year, month + 1) || setMonth(month + 1)
+                                    }
+                                    }>
+                                    <svg className="inline-flex w-6 h-6 text-gray-400" fill="none"
+                                         viewBox="0 0 24 24"
+                                         stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                              d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                </button>
                             </div>
-                            }
                         </div>
+
+                        <table>
+                            <thead>
+                            <tr>
+                                {DAYS.map((day, i) =>
+                                    <th className=" w-12" key={i}>{day}</th>
+                                )}
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {monthTableData}
+                            </tbody>
+                        </table>
                     </div>
+                    }
                 </div>
             </div>
         </div>
-    );
+    </div>;
 }
